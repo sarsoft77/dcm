@@ -1,4 +1,5 @@
 from disasm.asm import *
+# from disasm.templates import *
 
 
 def ReplaceWords(s, words):
@@ -11,10 +12,7 @@ class Memory:
     '''
     Память
     '''
-    OffsetAddr = 0
-    BeginAddr = 0
-    NumBytes = 0
-    
+
     def __init__(self):
         self.Data = None
         
@@ -24,12 +22,12 @@ class Memory:
 
     def __next__(self):
         self.index += 1
-        if self.index >= self.Len:
+        if self.index >= len(self.Data):
             raise StopIteration
         offset = self.index * self.NumBytes
-        CurOffsetAddr = self.OffsetAddr + offset
-        CurAddr = self.BeginAddr + offset
-        return(CurOffsetAddr, CurAddr, self.Data[self.index])
+        offset_file = self.OffsetAddr + offset
+        ip = self.BeginAddr + offset
+        return(offset_file, ip, self.Data[self.index])
 
     def __getitem__(self, index):
         result = self.Data[index]
@@ -56,9 +54,12 @@ class Memory:
             file.seek(self.OffsetAddr)
             
             self.Data = list()
-            self.Len = Size // NumBytes
-            for i in range(self.Len):
+            for i in range(Size // NumBytes):
                 self.Data.append(int.from_bytes(file.read(NumBytes), ByteOrder))
+            # Если есть еще данные меньшие NumBytes, то их тоже скачиваем 
+            if Size % NumBytes: 
+                # сдвигаем влево на NumBytes-Size % NumBytes 
+                self.Data.append(int.from_bytes(file.read(NumBytes), ByteOrder) << 8 * (NumBytes - Size % NumBytes))
 
 
 class CPU(Asm):
@@ -78,7 +79,6 @@ class CPU(Asm):
     HeaderSize = 0x88
     HeaderData = None
     
-    ConstantsData = None
     ValueData = None
         
     Header = (
@@ -122,18 +122,65 @@ class CPU(Asm):
             self.HeaderData[adr] = int.from_bytes(self.FileData[adr[0]:adr[0] + adr[1]], 'big' if adr[2:3] == ('b',) else 'little')
                 
     def PrintHeader(self):
+        '''
+        Вывод шапки файла    
+        '''
         for adr, val in self.HeaderData.items():
             print(f'{adr[0]:04X} : {val:019_X}  # {self.Header[adr]}')
             
     def LoadCode(self):
+        '''
+        Загрузка кода из файла, согласно шапки файла    
+        '''
         self.CodeData = Memory()
         self.CodeData.LoadFromFile(self.FileNameBin, self.HeaderData[self.code_offset], self.HeaderData[self.code_size], 4, self.HeaderData[self.begin_addr]) 
 
+    def CodeToAsm(self, adr, code):
+        '''
+        Разбор структуры кода,
+        определение типа команды, кода операции, название команды
+        имени шаблона, команды ассемблера    
+        '''
+        self.adr = adr
+        self.code = code
+        self.T, self.OP, self.DD = self.SplitBits(self.code, (2, 12, 32)).split(' ')
+        self.T=int(self.T,2)
+        self.OP=int(self.OP,2)
+        self.DD=int(self.DD,2)
+#         self.T = self.code >> 30  # 2 бита тип команды
+#         self.OP = ((self.code >> 20) & 0x3FF)  # 10 бит код операции
+#         self.DD = self.code & 0xFFFFF  # 20 бит данных
+        # имя шаблона, название команды на ассемблере, строка шаблона 
+        self.NameT, self.CmdAsm, self.StrT = self.OpToAsm[self.T][self.OP]
+        ArgAsm = self.DecodeTemplate()
+#         ArgAsm = self.Template[self.NameT](self.DD)
+        ArgAsmRepl = ReplaceWords(ArgAsm, self.equ)
+        return(f'{self.CmdAsm:6s} {ArgAsm:23s} # {ArgAsmRepl:23s}   # {self.T:02b} {self.OP:010b} {self.NameT:1s} {self.SplitBits(self.DD,self.Template[self.NameT]):25s}')
+
     def PrintCode(self):
-        for offset, addr, code in self.CodeData:
-            cmd = self.CodeToAsm(addr, code)
+        '''
+        Вывод на печать кода из памяти    
+        '''
+        for offset_file, ip, code in self.CodeData:
+            cmd = self.CodeToAsm(ip, code)
             CodeStr = self.SplitBits(code, (2, 4, 6, 8), '.', 'X')    
-            print(f'{offset:04X} :  {addr:04X} :{CodeStr:11s}  {cmd}')
+            print(f'{offset_file:04X}: {ip:04X}:{CodeStr:11s} {cmd}')
+
+    def LoadConstants(self):
+        '''
+        Выделяем память под область констант сразу после области кода 
+        '''
+        self.ConstantsData = Memory()
+        self.ConstantsData.LoadFromFile(self.FileNameBin, self.HeaderData[self.constants_offset], self.HeaderData[self.constants_size], 16, self.HeaderData[self.begin_addr] + self.HeaderData[self.code_size]) 
+
+    def PrintConstants(self):
+        '''
+        Вывод на печать кода из памяти    
+        '''
+        for offset, addr, code in self.ConstantsData:
+            CodeStr = self.SplitBits(code, range(2, 34, 2), '.', 'X')
+            # cmd = ''.join([chr(int(b, 16)) for b in CodeStr.split('.')])
+            print(f'{offset:04X} :  {addr:04X} :{CodeStr:32s}')
 
     def SetEqu(self, filenameEqu):
         '''
@@ -145,23 +192,6 @@ class CPU(Asm):
                 e = s.split()
                 if (len(e) == 3) and (e[1].lower() == 'equ'):
                     self.equ[e[2]] = e[0]
-        
-    def CodeToAsm(self, adr, code):
-        '''
-        Разбор структуры кода,
-        определение типа команды, кода операции, название команды
-        имени шаблона, команды ассемблера    
-        '''
-        self.adr = adr
-        self.code = code
-        self.T = self.code >> 30  # 2 бита тип команды
-        self.OP = ((self.code >> 20) & 0x3FF)  # 10 бит код операции
-        self.DD = self.code & 0xFFFFF  # 20 бит данных
-        # имя шаблона, название команды на ассемблере, строка шаблона 
-        self.NameT, self.CmdAsm, self.StrT = self.OpToAsm[self.T][self.OP]
-        ArgAsm = self.DecodeTemplate()
-        ArgAsmRepl = ReplaceWords(ArgAsm, self.equ)
-        return(f'{self.CmdAsm:6s} {ArgAsm:23s} # {ArgAsmRepl:25s}   # {self.T:02b} {self.OP:010b} {self.NameT:1s} {self.SplitBits(self.DD,self.Template[self.NameT]):25s}')
 
     def SplitBits(self, d, t, s=' ', base='b'):
         '''
@@ -198,7 +228,7 @@ class CPU(Asm):
             return(x)
         else:    
             return(x)
-        
+
     def DecodeTemplate(self):
         if self.NameT == 'A':
             imm = self.DD & 0xFFFFF

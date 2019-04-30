@@ -1,6 +1,35 @@
+MAX_128bit = 2 ** 128 - 1
+
 '''
 Класс ассемблерных команд
 '''
+
+
+class T00:
+
+    def op00_0(self, reg1, reg2, reg3):
+        # addi
+        reg1 = reg2 + reg3
+        
+    def op0_1(self, reg1, reg2, imm10):
+        # addi
+        reg1 = reg2 + imm10
+        
+    def op0_2(self, reg1, reg2, reg3):
+        # subi
+        reg1 = reg2 - reg3
+        
+    def op0_3(self, reg1, reg2, imm10):
+        # subi
+        reg1 = reg2 - imm10
+        
+    def op0_4(self, reg1, reg2, reg3):
+        # muliu
+        reg1 = (reg2 * reg3) & MAX_128bit
+        
+    def op0_5(self, reg1, reg2, imm10):
+        # muliu
+        reg1 = (reg2 * imm10) & MAX_128bit
 
 
 class Asm:
@@ -60,11 +89,11 @@ class Asm:
         ('E', 'orn', 'r{reg1}, r{reg2}, {imm10}'),  #  00:0000011111:{reg1}:{reg2}:{imm10} шаблон E
         ('F', 'xorn', 'r{reg1}, r{reg2}, r{reg3}'),  #  00:0000100000:{reg1}:{reg2}:{reg3}:00000 шаблон F
         ('E', 'xorn', 'r{reg1}, r{reg2}, {imm10}'),  # 00:0000100001:{reg1}:{reg2}:{imm10} шаблон E
-        ('E', 'lshift', 'r{reg1}, r{reg2}, r{reg3}'),  # 00:0000100010:{reg1}:{reg2}:{reg3}:00000 шаблон F
+        ('F', 'lshift', 'r{reg1}, r{reg2}, r{reg3}'),  # 00:0000100010:{reg1}:{reg2}:{reg3}:00000 шаблон F
         ('E', 'lshift', 'r{reg1}, r{reg2}, {imm10}'),  # 00:0000100011:{reg1}:{reg2}:{imm10} шаблон E
-        ('E', 'rshift', 'r{reg1}, r{reg2}, r{reg3}'),  # 00:0000100100:{reg1}:{reg2}:{reg3}:00000 шаблон F
+        ('F', 'rshift', 'r{reg1}, r{reg2}, r{reg3}'),  # 00:0000100100:{reg1}:{reg2}:{reg3}:00000 шаблон F
         ('E', 'rshift', 'r{reg1}, r{reg2}, {imm10}'),  # 00:0000100101:{reg1}:{reg2}:{imm10} шаблон E
-        ('E', 'rshifts', 'r{reg1}, r{reg2}, r{reg3}'),  # 00:0000100110:{reg1}:{reg2}:{reg3}:00000 шаблон F
+        ('F', 'rshifts', 'r{reg1}, r{reg2}, r{reg3}'),  # 00:0000100110:{reg1}:{reg2}:{reg3}:00000 шаблон F
         ('E', 'rshifts', 'r{reg1}, r{reg2}, {imm10}'),  # 00:0000100111:{reg1}:{reg2}:{imm10} шаблон E
         ('D', 'not', 'r{reg1}, r{reg2}'),  # 00:0000101000:{reg1}:{reg2}:0000000000 шаблон D
         ('C', 'not', 'r{reg}, {imm15}')),  # 00:0000101001:{reg}:imm15  шаблон C
@@ -74,15 +103,15 @@ class Asm:
         ('F', 'mulf', 'f{reg1}, f{reg2}, f{reg3}'),  # 01:0000000010:{reg1}:{reg2}:{reg3}:00000 шаблон F
         ('F', 'divf', 'f{reg1}, f{reg2}, f{reg3}'),  # 01:0000000011:{reg1}:{reg2}:{reg3}:00000 шаблон F
         ('F', 'cmpf', 'r{reg1}, f{reg2}, f{reg3}'),  # 01:0000000100:{reg1}:{reg2}:{reg3}:00000 шаблон F
-        ('F', 'roundn', 'r{reg1}, f{reg2}'),  # 01:0000000101:{reg1}:{reg2}:0000000000 шаблон D
-        ('F', 'roundl', 'r{reg1}, f{reg2}'),  # 01:0000000110:{reg1}:{reg2}:0000000000 шаблон D
-        ('F', 'roundg', 'r{reg1}, f{reg2}'),  # 01:0000000111:{reg1}:{reg2}:0000000000 шаблон D
-        ('F', 'roundt', 'r{reg1}, f{reg2}'),  # 01:0000001000:{reg1}:{reg2}:0000000000 шаблон D
-        ('F', 'frac', 'f{reg1}, f{reg2}'),  # 01:0000001001:{reg1}:{reg2}:0000000000 шаблон D
-        ('F', 'absf', 'f{reg1}, f{reg2}'),  # 01:0000001010:{reg1}:{reg2}:0000000000 шаблон D
+        ('D', 'roundn', 'r{reg1}, f{reg2}'),  # 01:0000000101:{reg1}:{reg2}:0000000000 шаблон D
+        ('D', 'roundl', 'r{reg1}, f{reg2}'),  # 01:0000000110:{reg1}:{reg2}:0000000000 шаблон D
+        ('D', 'roundg', 'r{reg1}, f{reg2}'),  # 01:0000000111:{reg1}:{reg2}:0000000000 шаблон D
+        ('D', 'roundt', 'r{reg1}, f{reg2}'),  # 01:0000001000:{reg1}:{reg2}:0000000000 шаблон D
+        ('D', 'frac', 'f{reg1}, f{reg2}'),  # 01:0000001001:{reg1}:{reg2}:0000000000 шаблон D
+        ('D', 'absf', 'f{reg1}, f{reg2}'),  # 01:0000001010:{reg1}:{reg2}:0000000000 шаблон D
         ('F', 'mul2f', 'f{reg1}, f{reg2}, r{reg3}'),  # 01:0000001011:{reg1}:{reg2}:{reg3}:00000 шаблон F
-        ('F', 'mul2f', 'f{reg1}, f{reg2}, {imm10}', 'z'),  # 01:0000001011:{reg1}:{reg2}:{imm10}:00000 шаблон E
-        ('F', 'chsf', 'f{reg1}, f{reg2}')),  # 01:0000000101:{reg1}:{reg2}:0000000000 шаблон D
+        ('E', 'mul2f', 'f{reg1}, f{reg2}, {imm10}', 'z'),  # 01:0000001011:{reg1}:{reg2}:{imm10}:00000 шаблон E
+        ('D', 'chsf', 'f{reg1}, f{reg2}')),  # 01:0000000101:{reg1}:{reg2}:0000000000 шаблон D
     # Т=10       
         (('B', 'jmp', 'r{reg}'),  # 10:0000000000:{reg}:000000000000000 шаблон B
         ('D', 'jmps', 'r{reg1}, r{reg2}'),  # 10:0000000001:{reg1}:{reg2}:0000000000 шаблон D
@@ -182,3 +211,4 @@ class Asm:
         ('D', 'pop', 'f{reg1}-f{reg2}'),  # 11:0000011100:f$i$:f$j$:0000000000 шаблон D
         ('B', 'fld1', 'f{reg}'),  # 11:0000011101:{reg}:000000000000000 шаблон B
         ('B', 'fldz', 'f{reg}')))  # 11:0000011110:{reg}:000000000000000 шаблон B
+        

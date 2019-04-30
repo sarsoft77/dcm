@@ -16,8 +16,8 @@ def bin2asm(filenameBin, filenameEqu, filenameAsm):
     C.PrintHeader()
     C.LoadCode()
     C.PrintCode()
-#     C.LoadConstant()
-#     C.PrintConstats()
+    C.LoadConstants()
+    C.PrintConstants()
 #     
 #     # Code
 #     adr_load = Datas[(0x08, 0x10)]
